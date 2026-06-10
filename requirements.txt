@@ -1,0 +1,22 @@
+# Versions verified working on Python 3.14 (Windows) — installed & tested in this project.
+# --- Core pipeline ---
+praw==7.8.2                 # Reddit API client (stage 1)
+edge-tts==7.2.8             # Free neural text-to-speech (stage 3)
+faster-whisper==1.2.1       # Word-level caption timing (stage 4); runs on CPU
+PyYAML==6.0.3               # config.yaml loader
+python-dotenv==1.2.2        # load secrets from .env
+requests==2.34.2            # fallback Reddit JSON fetch + misc
+
+# --- YouTube upload (stage 6) ---
+google-api-python-client==2.197.0
+google-auth-oauthlib==1.4.0
+google-auth-httplib2==0.4.0
+
+# --- Optional upgrades (uncomment to use) ---
+# elevenlabs                # premium TTS voice
+# anthropic                 # LLM script rewriting with Claude
+
+# NOTE: FFmpeg and yt-dlp are SYSTEM dependencies (installed via winget here):
+#   winget install Gyan.FFmpeg
+#   winget install yt-dlp.yt-dlp
+# faster-whisper pulls ctranslate2/onnxruntime/av/numpy automatically.

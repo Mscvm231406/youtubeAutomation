@@ -1,0 +1,162 @@
+# ============================================================
+#  Reddit → YouTube Shorts — central configuration
+#  Every stage reads its knobs from here. Edit freely.
+# ============================================================
+
+# --- Stage 1: Reddit fetch ---
+reddit:
+  subreddits:                 # rotate through these; CLI --subreddit overrides
+    - AskReddit
+    - tifu
+    - AmItheAsshole
+    - Showerthoughts
+  listing: top                # top | hot | rising
+  time_filter: day            # for `top`: hour | day | week | month
+  limit: 25                   # how many posts to pull before filtering
+  min_score: 500              # skip low-engagement posts
+  min_chars: 200              # skip too-short posts (boring shorts)
+  max_chars: 1500             # skip walls of text (won't fit ~50s)
+  # NSFW filter. false (default) = reject any post flagged over-18 OR containing
+  # sexual/adult text, drop NSFW comments, and refuse to upload such a video
+  # (final guard in both runners). Set true only to allow adult content.
+  # Extend the term list via assets/nsfwlist.txt (one term per line).
+  allow_nsfw: false
+  include_comments: false     # (legacy single-post format) append top comment
+  # --- Reddit-card "story" format (post + comments shown as Reddit cards) ---
+  scan_posts: 25              # how many trending posts to scan for a good one
+  # pullpush window (anonymous path): 0 = all-time top (reliable comments).
+  # With Reddit API creds, PRAW is used instead and gives true live/daily trending.
+  trending_days: 0
+  # --- arctic-shift archive (PRIMARY fast source; pullpush is the fallback) ---
+  # arctic sorts by date, so we pull a past window (old enough that posts have
+  # accumulated comments) and rank by score in code. Tune the window if a
+  # subreddit comes up empty.
+  arctic_scan: 100            # posts to pull per window (arctic caps at 100)
+  arctic_days_min: 14         # window NEAR edge: at least this many days old
+  arctic_days_max: 45         # window FAR edge: at most this many days old
+  max_comments: 6             # max comment cards per video
+  min_comments: 3             # require at least this many usable comments
+  comment_max_chars: 280      # skip comments longer than this (keeps pace snappy)
+
+reddit_card:
+  post_author: redditor       # shown as "Posted by u/..." on the post card
+
+# --- Stage 2: Script generation ---
+script:
+  hook_template: "{title}"    # spoken first; grabs attention in first 2s
+  max_speech_seconds: 50      # hard cap so final video stays a Short (<60s)
+  words_per_second: 2.6       # narration pace estimate for trimming
+  use_llm: false              # true → rewrite/punch-up via LLM (needs key)
+  llm_provider: anthropic     # anthropic | openai
+  llm_model: claude-haiku-4-5-20251001
+
+# --- Stage 3: Text-to-speech ---
+tts:
+  engine: edge                # edge (free) | elevenlabs (premium, needs key)
+  # edge fallback (used automatically if no ELEVENLABS_API_KEY is set):
+  edge_voice: en-US-AndrewNeural   # try GuyNeural, AriaNeural, ChristopherNeural
+  edge_rate: "+8%"            # slightly faster = more energetic
+  # ElevenLabs:
+  #   "most_popular" → auto-resolve the library's most-used voice & cache it.
+  #   Or paste a specific voice id. Natasha (Valley girl) = uxKr2vlA4hYgXZR1oPRT
+  elevenlabs_voice_id: most_popular
+  elevenlabs_model: eleven_turbo_v2_5   # fast & cheap; eleven_multilingual_v2 = higher quality
+  elevenlabs_stability: 0.4
+  elevenlabs_similarity: 0.8
+  elevenlabs_style: 0.3
+
+# --- Stage 4: Captions ---
+captions:
+  enabled: true
+  device: cpu                 # cpu (default; no GPU needed) | cuda (NVIDIA + CUDA libs)
+  whisper_model: base         # tiny | base | small | medium (bigger = slower/better)
+  max_words_per_line: 4       # caption chunk size on screen
+  # Font family NAME (resolved from installed fonts / assets/fonts) or a .ttf path.
+  # "Impact" ships with Windows; drop a bolder .ttf in assets/fonts to upgrade.
+  font: Impact
+  font_size: 86
+  primary_color: "&H00FFFFFF" # white   (ASS BGR hex)
+  highlight_color: "&H0000F2FF" # yellow highlight for active word
+  outline: 6
+  margin_v: 420               # vertical position from bottom (px)
+
+# --- Stage 5: Video composition ---
+video:
+  width: 1080
+  height: 1920
+  fps: 30
+  card_y_offset: 80           # pixels to raise Reddit cards above exact center
+  max_duration: 59           # safety cap (seconds)
+  backgrounds_dir: assets/backgrounds   # pool of .mp4s; one is chosen per video
+  background_mode: random     # random (avoids the last-used clip) | sequential (rotate in order)
+  background_random_start: true  # seek to a random point in the clip so repeats still differ
+  music_dir: assets/music     # optional bed; leave empty to skip
+  music_volume: 0.08          # 0..1, kept low under narration
+  audio_codec: aac
+  video_codec: libx264
+  crf: 20                     # quality (lower = better/bigger)
+
+# --- Stage 6: YouTube upload ---
+youtube:
+  # --- Channels ------------------------------------------------------------
+  # The list of channels Shorts post to is managed by `scripts/channels.py`
+  # (stored in channels.json), NOT here. Add/remove/list with, e.g.:
+  #   python scripts/channels.py add second --login
+  #   python scripts/channels.py list
+  # Then post with `--channel <name>` or `--channel all`. Each channel has its
+  # own OAuth token (picked at the browser consent screen) and may carry a
+  # per-channel privacy override; all share this client_secret.json + the
+  # settings below. Until you add any, a single "main" channel is assumed.
+
+  privacy: public             # private | unlisted | public
+  category_id: "24"           # 24 = Entertainment, 23 = Comedy
+  made_for_kids: false
+  title_max_len: 90           # YouTube hard-limits titles to 100; we keep margin
+
+  # --- Title ---------------------------------------------------------------
+  # Per-subreddit title templates. {title}=post title, {subreddit}=sub.
+  # The post title is already the hook (a question / "TIFU by…" / "AITA for…"),
+  # so we keep it intact and append one framing emoji + #Shorts (which puts the
+  # video on the Shorts shelf). 'default' is used for any sub not listed.
+  title_templates:
+    default: "{title} #Shorts"
+    AskReddit: "{title} 🤔 #Shorts"
+    tifu: "{title} 😳 #Shorts"
+    AmItheAsshole: "{title} 😬 #Shorts"
+    Showerthoughts: "{title} 🤯 #Shorts"
+  title_template: "{title} #Shorts"   # legacy fallback if title_templates absent
+
+  # --- Hashtags ------------------------------------------------------------
+  # YouTube shows the FIRST 3 hashtags above the title (so `core` order matters),
+  # and ignores ALL hashtags if a video has >15. We cap at hashtag_max and the
+  # title's own #Shorts counts, so stay well under 15.
+  #   final list = core + common + by_subreddit[sub]  (deduped, capped)
+  hashtags:
+    core: [Shorts, reddit, redditstories]      # surface above the title
+    common: [redditstorytime, storytime, fyp]  # broad discovery
+    by_subreddit:
+      AskReddit: [askreddit, askredditstories]
+      tifu: [tifu, todayifuckedup, confession]
+      AmItheAsshole: [aita, amitheasshole, relationships]
+      Showerthoughts: [showerthoughts, deepthoughts]
+  hashtag_max: 12
+  tags: [shorts, reddit, redditstories, askreddit, storytime]  # legacy fallback
+
+  description_template: |
+    {title}
+
+    Source: r/{subreddit} — credit to the original poster.
+    🔔 Subscribe for daily Reddit stories!
+
+    {hashtags}
+  publish_at: ""              # ISO8601 to schedule (privacy auto-set to private)
+
+# --- Orchestration ---
+run:
+  output_dir: output
+  temp_dir: temp
+  state_file: state/processed.json
+  history_file: state/history.json  # ordered log of posts already turned into videos
+  cooldown: 5                 # don't reuse a post within this many videos (repeats OK after)
+  keep_temp: false            # true → keep intermediate audio/srt for debugging
+  daily_quota: 3              # max uploads per run when scheduled

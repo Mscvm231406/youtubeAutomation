@@ -1,0 +1,22 @@
+# Secrets — NEVER share these
+.env
+client_secret*.json
+
+# Per-user data (your channels, OAuth tokens, history, stats) — do not share
+channels.json
+state/
+dashboard.html
+
+# Generated artifacts
+output/
+temp/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Large media (commit your own backgrounds elsewhere)
+assets/backgrounds/*.mp4
+assets/backgrounds/*.mov
+assets/music/*
